@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестирование</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            min-height: auto;
+        }
+
+        @media (min-width: 768px) {
+            .content {
+                flex-direction: row;
+                min-height: 600px;
+            }
+        }
+
+        .left-panel, .right-panel {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .left-panel {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        @media (min-width: 768px) {
+            .left-panel {
+                border-right: 1px solid #e0e0e0;
+                border-bottom: none;
+            }
+        }
+
+        .right-panel {
+            background: white;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #3498db;
+            font-size: 1.3em;
+        }
+
+        h3 {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 10px;
+            padding: 25px 15px;
+            text-align: center;
+            background: #f0f8ff;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            background: #e6f2ff;
+            border-color: #2980b9;
+        }
+
+        .upload-area i {
+            font-size: 36px;
+            color: #3498db;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background 0.3s;
+            width: 100%;
+            max-width: 200px;
+        }
+
+        .upload-btn:hover {
+            background: #2980b9;
+        }
+
+        .test-info {
+            background: #e8f4fc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .test-info p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+
+        .test-options {
+            background: #e8f4fc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: block;
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .option-row label {
+            margin-left: 10px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .option-row input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #3498db;
+            border-radius: 5px;
+            margin-left: 10px;
+        }
+
+        .option-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .instructions pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        .question-container {
+            display: none;
+        }
+
+        .question {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+        }
+
+        .question-text {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            line-height: 1.4;
+        }
+
+        .answers {
+            display: grid;
+            gap: 8px;
+        }
+
+        .answer-label {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .answer-label:hover {
+            border-color: #3498db;
+            background: #f0f8ff;
+        }
+
+        .answer-label.correct {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .answer-label.incorrect {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .answer-label.selected {
+            border-color: #3498db;
+            background: #f0f8ff;
+        }
+
+        input[type="radio"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .answer-label span {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .navigation {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .prev-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .prev-btn:hover {
+            background: #5a6268;
+        }
+
+        .next-btn, .submit-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .next-btn:hover, .submit-btn:hover {
+            background: #218838;
+        }
+
+        .results {
+            display: none;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .restart-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        .restart-btn:hover {
+            background: #2980b9;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #4b6cb7, #182848);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .status {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .timer {
+            background: #f8f9fa;
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .mobile-menu {
+            display: flex;
+            justify-content: space-between;
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .mobile-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .mobile-tab.active {
+            background: #3498db;
+        }
+
+        @media (max-width: 767px) {
+            .mobile-menu {
+                display: flex;
+            }
+            
+            .left-panel, .right-panel {
+                display: none;
+                padding: 15px;
+            }
+            
+            .left-panel.active, .right-panel.active {
+                display: block;
+            }
+            
+            body {
+                padding: 10px;
+            }
+            
+            header {
+                padding: 15px 10px;
+            }
+            
+            header h1 {
+                font-size: 1.5em;
+            }
+            
+            .nav-btn {
+                min-width: 100px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-graduation-cap"></i> Система тестирования</h1>
+            <p>Случайные 30 вопросов из загруженного теста</p>
+        </header>
+        
+        <div class="mobile-menu">
+            <div class="mobile-tab active" onclick="showTab('left')">
+                <i class="fas fa-upload"></i> Загрузка
+            </div>
+            <div class="mobile-tab" onclick="showTab('right')">
+                <i class="fas fa-question-circle"></i> Тест
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="left-panel active" id="leftPanel">
+                <h2><i class="fas fa-upload"></i> Загрузка теста</h2>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-file-word"></i>
+                    <h3>Перетащите Word-документ с тестом сюда</h3>
+                    <p>или нажмите для выбора файла</p>
+                    <button class="upload-btn">Выбрать файл</button>
+                </div>
+                <input type="file" id="fileInput" accept=".docx,.doc,.txt" onchange="loadTest(this.files[0])">
+                
+                <div class="test-options">
+                    <h3><i class="fas fa-cog"></i> Настройки теста</h3>
+                    <div class="option-row">
+                        <input type="checkbox" id="randomQuestions" checked>
+                        <label for="randomQuestions">Случайные вопросы</label>
+                    </div>
+                    <div class="option-row">
+                        <label for="questionCount">Количество вопросов:</label>
+                        <input type="number" id="questionCount" value="30" min="1" max="100">
+                    </div>
+                    <div class="option-row">
+                        <input type="checkbox" id="timerEnabled">
+                        <label for="timerEnabled">Таймер (минут):</label>
+                        <input type="number" id="timerMinutes" value="30" min="5" max="180" disabled>
+                    </div>
+                </div>
+                
+                <div class="test-info" id="testInfo">
+                    <h3><i class="fas fa-info-circle"></i> Информация о тесте</h3>
+                    <p id="testTitle">Название: Не указано</p>
+                    <p id="questionCountInfo">Всего вопросов в файле: 0</p>
+                    <p id="selectedQuestions">Будет выбрано: 0</p>
+                </div>
+                
+                <div class="instructions">
+                    <h3><i class="fas fa-info-circle"></i> Формат документа</h3>
+                    <p>Файл должен содержать вопросы в формате:</p>
+                    <pre>
+1. Вопрос?
+   a) Вариант 1
+   b) Вариант 2
+   c) Вариант 3
+   d) Вариант 4
+   Правильный ответ: a
+                    </pre>
+                    <p><strong>Система выберет случайные вопросы из файла</strong></p>
+                </div>
+            </div>
+            
+            <div class="right-panel" id="rightPanel">
+                <div id="testInterface">
+                    <h2><i class="fas fa-question-circle"></i> Прохождение теста</h2>
+                    <div id="timerDisplay" class="timer" style="display: none;">
+                        <i class="fas fa-clock"></i> Осталось: <span id="timer">30:00</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress" id="progress"></div>
+                    </div>
+                    <div class="status" id="status">Загрузите тест для начала</div>
+                    
+                    <div class="question-container" id="questionContainer">
+                        <div class="question">
+                            <div class="question-text" id="questionText"></div>
+                            <div class="answers" id="answers"></div>
+                        </div>
+                        
+                        <div class="navigation">
+                            <button class="nav-btn prev-btn" onclick="prevQuestion()" id="prevBtn">
+                                <i class="fas fa-arrow-left"></i> Назад
+                            </button>
+                            <button class="nav-btn next-btn" onclick="nextQuestion()" id="nextBtn">
+                                Далее <i class="fas fa-arrow-right"></i>
+                            </button>
+                            <button class="nav-btn submit-btn" onclick="finishTest()" id="submitBtn" style="display: none;">
+                                <i class="fas fa-check-circle"></i> Завершить
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="results" id="results">
+                        <h2><i class="fas fa-chart-line"></i> Результаты тестирования</h2>
+                        <div class="score-circle" id="scoreCircle">0%</div>
+                        <h3 id="finalScore">Правильных ответов: 0 из 0</h3>
+                        <div id="detailedResults"></div>
+                        <p id="resultMessage"></p>
+                        <button class="restart-btn" onclick="restartTest()">
+                            <i class="fas fa-redo"></i> Новый тест
+                        </button>
+                        <button class="restart-btn" onclick="showAnswers()" style="background: #6c757d; margin-top: 10px;">
+                            <i class="fas fa-list"></i> Показать все ответы
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/mammoth@1.4.8/mammoth.browser.min.js"></script>
+    <script>
+        let testData = [];
+        let allQuestions = [];
+        let currentQuestion = 0;
+        let userAnswers = [];
+        let score = 0;
+        let timerInterval = null;
+        let timeLeft = 1800; // 30 минут в секундах
+        let selectedQuestionsCount = 30;
+
+        function showTab(tab) {
+            const leftPanel = document.getElementById('leftPanel');
+            const rightPanel = document.getElementById('rightPanel');
+            const tabs = document.querySelectorAll('.mobile-tab');
+            
+            if (tab === 'left') {
+                leftPanel.classList.add('active');
+                rightPanel.classList.remove('active');
+                tabs[0].classList.add('active');
+                tabs[1].classList.remove('active');
+            } else {
+                leftPanel.classList.remove('active');
+                rightPanel.classList.add('active');
+                tabs[0].classList.remove('active');
+                tabs[1].classList.add('active');
+            }
+        }
+
+        // Настройки таймера
+        document.getElementById('timerEnabled').addEventListener('change', function() {
+            document.getElementById('timerMinutes').disabled = !this.checked;
+        });
+
+        document.getElementById('questionCount').addEventListener('change', function() {
+            selectedQuestionsCount = parseInt(this.value) || 30;
+        });
+
+        async function loadTest(file) {
+            if (!file) return;
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+                const text = result.value;
+                
+                parseTestText(text);
+                prepareTest();
+                showTestInfo(file.name);
+                startTest();
+                
+                // На мобильных переключаем на вкладку теста
+                if (window.innerWidth < 768) {
+                    showTab('right');
+                }
+                
+            } catch (error) {
+                // Если это не Word файл, пробуем прочитать как текстовый
+                if (file.name.endsWith('.txt') || file.name.endsWith('.doc')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        parseTestText(e.target.result);
+                        prepareTest();
+                        showTestInfo(file.name);
+                        startTest();
+                        
+                        if (window.innerWidth < 768) {
+                            showTab('right');
+                        }
+                    };
+                    reader.readAsText(file);
+                } else {
+                    alert('Ошибка при чтении файла. Убедитесь, что это документ Word или текстовый файл.');
+                    console.error(error);
+                }
+            }
+        }
+
+        function parseTestText(text) {
+            allQuestions = [];
+            
+            // Убираем лишние пробелы и разбиваем на строки
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            
+            let currentQuestion = null;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Проверяем, начинается ли строка с цифры и точки (новый вопрос)
+                const questionMatch = line.match(/^(\d+)\.\s*(.+)$/);
+                if (questionMatch) {
+                    // Сохраняем предыдущий вопрос, если он есть
+                    if (currentQuestion && currentQuestion.answers.length > 0) {
+                        allQuestions.push(currentQuestion);
+                    }
+                    
+                    // Создаем новый вопрос
+                    currentQuestion = {
+                        id: allQuestions.length,
+                        originalNumber: parseInt(questionMatch[1]),
+                        text: questionMatch[2].trim(),
+                        answers: [],
+                        correctAnswer: -1
+                    };
+                } 
+                // Проверяем, является ли строка вариантом ответа (начинается с буквы и скобки)
+                else if (currentQuestion && line.match(/^[a-d]\)/i)) {
+                    // Извлекаем текст ответа
+                    const answerText = line.replace(/^[a-d]\)\s*/i, '').trim();
+                    
+                    // Проверяем, содержит ли строка указание на правильный ответ
+                    const correctMatch = answerText.toLowerCase().match(/правильный ответ:\s*([a-d])/i);
+                    if (correctMatch) {
+                        // Определяем индекс правильного ответа (0 для 'a', 1 для 'b', и т.д.)
+                        const correctLetter = correctMatch[1].toLowerCase();
+                        currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 97; // 'a' -> 0, 'b' -> 1
+                        
+                        // Убираем пометку о правильном ответе из текста
+                        const cleanAnswerText = answerText.replace(/правильный ответ:\s*[a-d]/i, '').trim();
+                        currentQuestion.answers.push(cleanAnswerText);
+                    } else {
+                        currentQuestion.answers.push(answerText);
+                    }
+                }
+                // Проверяем, содержит ли строка отдельное указание на правильный ответ
+                else if (currentQuestion && line.toLowerCase().includes('правильный ответ:')) {
+                    const correctMatch = line.toLowerCase().match(/правильный ответ:\s*([a-d])/i);
+                    if (correctMatch && currentQuestion.correctAnswer === -1) {
+                        const correctLetter = correctMatch[1].toLowerCase();
+                        currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 97;
+                    }
+                }
+                // Если это продолжение вопроса (многострочный вопрос)
+                else if (currentQuestion && currentQuestion.answers.length === 0) {
+                    currentQuestion.text += ' ' + line;
+                }
+                // Если это продолжение ответа (многострочный ответ)
+                else if (currentQuestion && currentQuestion.answers.length > 0) {
+                    const lastAnswerIndex = currentQuestion.answers.length - 1;
+                    currentQuestion.answers[lastAnswerIndex] += ' ' + line;
+                }
+            }
+            
+            // Добавляем последний вопрос
+            if (currentQuestion && currentQuestion.answers.length > 0) {
+                allQuestions.push(currentQuestion);
+            }
+        }
+
+        function prepareTest() {
+            const useRandom = document.getElementById('randomQuestions').checked;
+            selectedQuestionsCount = parseInt(document.getElementById('questionCount').value) || 30;
+            
+            if (useRandom) {
+                // Выбираем случайные вопросы
+                testData = getRandomQuestions(allQuestions, selectedQuestionsCount);
+            } else {
+                // Берем первые N вопросов
+                testData = allQuestions.slice(0, Math.min(selectedQuestionsCount, allQuestions.length));
+            }
+            
+            // Перемешиваем вопросы, если выбран случайный режим
+            if (useRandom) {
+                shuffleArray(testData);
+            }
+            
+            // Перенумеровываем вопросы
+            testData.forEach((q, index) => {
+                q.id = index;
+            });
+        }
+
+        function getRandomQuestions(questions, count) {
+            if (questions.length <= count) {
+                return [...questions];
+            }
+            
+            // Создаем копию массива
+            const shuffled = [...questions];
+            // Перемешиваем
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            
+            // Берем первые N элементов
+            return shuffled.slice(0, count);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function showTestInfo(filename) {
+            const testInfo = document.getElementById('testInfo');
+            testInfo.style.display = 'block';
+            
+            document.getElementById('testTitle').textContent = `Название: ${filename}`;
+            document.getElementById('questionCountInfo').textContent = `Всего вопросов в файле: ${allQuestions.length}`;
+            document.getElementById('selectedQuestions').textContent = `Будет выбрано: ${testData.length}`;
+        }
+
+        function startTest() {
+            if (testData.length === 0) {
+                alert('Не удалось загрузить вопросы. Проверьте формат файла.');
+                return;
+            }
+            
+            currentQuestion = 0;
+            score = 0;
+            userAnswers = new Array(testData.length).fill(null);
+            
+            document.getElementById('questionContainer').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            
+            // Настраиваем таймер
+            if (document.getElementById('timerEnabled').checked) {
+                const minutes = parseInt(document.getElementById('timerMinutes').value) || 30;
+                timeLeft = minutes * 60;
+                document.getElementById('timerDisplay').style.display = 'inline-block';
+                startTimer();
+            } else {
+                document.getElementById('timerDisplay').style.display = 'none';
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            }
+            
+            loadQuestion(currentQuestion);
+            updateProgress();
+        }
+
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    finishTest();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function loadQuestion(index) {
+            if (testData.length === 0) return;
+            
+            const question = testData[index];
+            document.getElementById('questionText').textContent = `${index + 1}. ${question.text}`;
+            
+            const answersContainer = document.getElementById('answers');
+            answersContainer.innerHTML = '';
+            
+            question.answers.forEach((answer, answerIndex) => {
+                const label = document.createElement('label');
+                label.className = 'answer-label';
+                if (userAnswers[index] === answerIndex) {
+                    label.classList.add('selected');
+                }
+                label.htmlFor = `answer-${index}-${answerIndex}`;
+                
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'answer';
+                radio.value = answerIndex;
+                radio.id = `answer-${index}-${answerIndex}`;
+                
+                if (userAnswers[index] === answerIndex) {
+                    radio.checked = true;
+                }
+                
+                radio.onclick = function() {
+                    selectAnswer(answerIndex);
+                };
+                
+                const answerLetter = String.fromCharCode(97 + answerIndex);
+                const answerText = document.createElement('span');
+                answerText.innerHTML = `<strong>${answerLetter})</strong> ${answer}`;
+                
+                label.appendChild(radio);
+                label.appendChild(answerText);
+                answersContainer.appendChild(label);
+            });
+            
+            // Обновляем кнопки навигации
+            document.getElementById('prevBtn').style.display = index === 0 ? 'none' : 'block';
+            document.getElementById('nextBtn').style.display = index === testData.length - 1 ? 'none' : 'block';
+            document.getElementById('submitBtn').style.display = index === testData.length - 1 ? 'block' : 'none';
+            
+            updateProgress();
+        }
+
+        function selectAnswer(selectedIndex) {
+            userAnswers[currentQuestion] = selectedIndex;
+            
+            // Обновляем стиль выбранного ответа
+            const labels = document.querySelectorAll('.answer-label');
+            labels.forEach((label, index) => {
+                label.classList.remove('selected', 'correct', 'incorrect');
+                if (index === selectedIndex) {
+                    label.classList.add('selected');
+                }
+            });
+            
+            // Автоматически показываем правильный ответ через 1 секунду
+            setTimeout(() => {
+                showCorrectAnswer();
+            }, 500);
+        }
+
+        function showCorrectAnswer() {
+            const question = testData[currentQuestion];
+            const labels = document.querySelectorAll('.answer-label');
+            
+            labels.forEach((label, index) => {
+                if (index === question.correctAnswer) {
+                    label.classList.add('correct');
+                } else if (index === userAnswers[currentQuestion] && userAnswers[currentQuestion] !== question.correctAnswer) {
+                    label.classList.add('incorrect');
+                }
+            });
+            
+            // Автоматически переходим к следующему вопросу через 2 секунды
+           /* if (currentQuestion < testData.length - 1) {
+                setTimeout(() => {
+                    nextQuestion();
+                }, 2000);
+            }*/
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < testData.length - 1) {
+                currentQuestion++;
+                loadQuestion(currentQuestion);
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                loadQuestion(currentQuestion);
+            }
+        }
+
+        function updateProgress() {
+            const progress = document.getElementById('progress');
+            const status = document.getElementById('status');
+            
+            const percent = ((currentQuestion + 1) / testData.length) * 100;
+            progress.style.width = `${percent}%`;
+            
+            status.textContent = `Вопрос ${currentQuestion + 1} из ${testData.length}`;
+        }
+
+        function finishTest() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // Пересчитываем итоговый балл
+            score = 0;
+            testData.forEach((question, index) => {
+                if (userAnswers[index] === question.correctAnswer) {
+                    score++;
+                }
+            });
+            
+            const percentage = Math.round((score / testData.length) * 100);
+            
+            document.getElementById('questionContainer').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('finalScore').textContent = 
+                `Правильных ответов: ${score} из ${testData.length}`;
+            document.getElementById('scoreCircle').textContent = `${percentage}%`;
+            
+            // Детальные результаты
+            const detailedResults = document.getElementById('detailedResults');
+            detailedResults.innerHTML = `
+                <p><strong>Оценка:</strong> ${getGrade(percentage)}</p>
+                <p><strong>Процент правильных ответов:</strong> ${percentage}%</p>
+            `;
+            
+            // Сообщение в зависимости от результата
+            const resultMessage = document.getElementById('resultMessage');
+            if (percentage >= 90) {
+                resultMessage.textContent = 'Отлично! Вы отлично знаете материал!';
+                resultMessage.style.color = '#28a745';
+            } else if (percentage >= 75) {
+                resultMessage.textContent = 'Хорошо! Вы хорошо знаете материал.';
+                resultMessage.style.color = '#20c997';
+            } else if (percentage >= 60) {
+                resultMessage.textContent = 'Удовлетворительно. Есть что повторить.';
+                resultMessage.style.color = '#ffc107';
+            } else if (percentage >= 50) {
+                resultMessage.textContent = 'Плохо. Нужно повторить материал.';
+                resultMessage.style.color = '#fd7e14';
+            } else {
+                resultMessage.textContent = 'Очень плохо. Необходимо серьезно подготовиться.';
+                resultMessage.style.color = '#dc3545';
+            }
+        }
+
+        function getGrade(percentage) {
+            if (percentage >= 90) return '5 (Отлично)';
+            if (percentage >= 75) return '4 (Хорошо)';
+            if (percentage >= 60) return '3 (Удовлетворительно)';
+            if (percentage >= 50) return '2 (Плохо)';
+            return '1 (Очень плохо)';
+        }
+
+        function showAnswers() {
+            let answersHtml = '<h3 style="margin-top: 20px; text-align: left;">Все вопросы и ответы:</h3>';
+            
+            testData.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                const isCorrect = userAnswer === question.correctAnswer;
+                const answerLetter = userAnswer !== null ? String.fromCharCode(97 + userAnswer) : 'Нет ответа';
+                const correctLetter = String.fromCharCode(97 + question.correctAnswer);
+                
+                answersHtml += `
+                    <div style="background: ${isCorrect ? '#d4edda' : '#f8d7da'}; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: left;">
+                        <p><strong>${index + 1}. ${question.text}</strong></p>
+                        <p>Ваш ответ: <strong>${answerLetter}</strong> ${userAnswer !== null ? question.answers[userAnswer] : ''}</p>
+                        <p>Правильный ответ: <strong style="color: #28a745">${correctLetter}) ${question.answers[question.correctAnswer]}</strong></p>
+                        <p>Статус: <strong style="color: ${isCorrect ? '#28a745' : '#dc3545'}">${isCorrect ? 'Правильно' : 'Неправильно'}</strong></p>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('detailedResults').innerHTML = answersHtml;
+        }
+
+        function restartTest() {
+            // Заново подготавливаем тест (новые случайные вопросы)
+            prepareTest();
+            
+            currentQuestion = 0;
+            userAnswers = new Array(testData.length).fill(null);
+            score = 0;
+            
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('questionContainer').style.display = 'block';
+            
+            // Сбрасываем таймер
+            if (document.getElementById('timerEnabled').checked) {
+                const minutes = parseInt(document.getElementById('timerMinutes').value) || 30;
+                timeLeft = minutes * 60;
+                startTimer();
+            }
+            
+            loadQuestion(currentQuestion);
+        }
+
+        // Обработка drag & drop
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.querySelector('.upload-area');
+            
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.style.background = '#e6f2ff';
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.style.background = '#f0f8ff';
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.background = '#f0f8ff';
+                
+                const file = e.dataTransfer.files[0];
+                if (file && (file.name.endsWith('.docx') || file.name.endsWith('.doc') || file.name.endsWith('.txt'))) {
+                    loadTest(file);
+                } else {
+                    alert('Пожалуйста, загрузите файл Word (.docx, .doc) или текстовый файл (.txt)');
+                }
+            });
+            
+            // Загружаем тестовые данные по умолчанию
+            loadDefaultTest();
+        });
+
+        function loadDefaultTest() {
+            // Создаем тестовые данные из вашего текста (первые 5 вопросов для примера)
+            const testText = `1. За единицу измерения углов (меру углов) в стрелковой практике принимают центральный угол, длина дуги которого равна?
+a) 1/6000 части длины окружности
+b) 1/1000 части длины окружности
+c) 1/600 части длины окружности
+d) 1/100 части длины окружности
+Правильный ответ: a
+
+2. Маркировкой боеприпасов называется?
+a) условные обозначения и записи нанесённые акварелью на мине, патроне и в ящике боеприпасов
+b) условные обозначения и записи нанесённые краской на пуле, патроне и в ящике боеприпасов
+c) условные знаки и надписи, нанесённые краской на снаряде, гильзе и укупорке боеприпасов
+d) условные символы и подписи, нанесённые красной краской на снаряде, гильзе и укупорке боеприпасов
+Правильный ответ: c
+
+3. НУРС-это?
+a) имя создателя реактивного снаряда
+b) несущий управляемый реактивный снаряд
+c) частично управляемый реактивный снаряд
+d) неуправляемый реактивный снаряд
+Правильный ответ: c
+
+4. Стабилизатор 2Э36-1 предназначен для?
+a) стабилизации и ведения огня по наземным и воздушным целям днём
+b) стабилизации, наблюдения, целеуказания, определения дальности
+c) стабилизации пушки в 2-х плоскостях в целях обеспечения эффективной стрельбы с ходу с места по наземным и воздушным целям
+d) стабилизации, наблюдения за полем боя и ведения прицельного огня из пушки и пулемёта днём и ночью
+Правильный ответ: c
+
+5. Автоматическое действие АК-74, РПК-74, основана на использовании?
+a) отдачи курка
+b) энергии пороховых газов
+c) отдачи свободного затвора
+d) отдачи возвратной пружины
+Правильный ответ: b`;
+
+            parseTestText(testText);
+            prepareTest();
+            showTestInfo('Тест по военной подготовке (демо)');
+        }
+    </script>
+</body>
+</html>
