@@ -182,6 +182,21 @@
             cursor: pointer;
         }
 
+        .format-selector {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .format-selector select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #3498db;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+
         .instructions {
             margin-top: 20px;
             font-size: 0.9em;
@@ -452,11 +467,23 @@
                 <h2><i class="fas fa-upload"></i> Загрузка теста</h2>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <i class="fas fa-file-word"></i>
-                    <h3>Перетащите Word-документ с тестом сюда</h3>
-                    <p>или нажмите для выбора файла</p>
+                    <h3>Перетащите файл с тестом сюда</h3>
+                    <p>Поддерживаемые форматы: .docx, .doc, .txt, .pdf, .xlsx, .xls</p>
                     <button class="upload-btn">Выбрать файл</button>
                 </div>
-                <input type="file" id="fileInput" accept=".docx,.doc,.txt" onchange="loadTest(this.files[0])">
+                <input type="file" id="fileInput" accept=".docx,.doc,.txt,.pdf,.xlsx,.xls" onchange="loadTest(this.files[0])">
+                
+                <div class="format-selector">
+                    <label for="fileFormat">Формат файла:</label>
+                    <select id="fileFormat" onchange="updateFileAccept()">
+                        <option value="auto">Определить автоматически</option>
+                        <option value="old">Старый формат (1. Вопрос? a) Вариант ...)</option>
+                        <option value="universal">Универсальный/Казахский формат (№ 1. Вопрос? A. Вариант ...)</option>
+                        <option value="excel">Excel формат (столбцы: вопрос, ответ, варианты)</option>
+                        <option value="excel-numbered">Excel с цифровыми ответами</option>
+                        <option value="complex">Сложный формат (таблицы в Word/PDF)</option>
+                    </select>
+                </div>
                 
                 <div class="test-options">
                     <h3><i class="fas fa-cog"></i> Настройки теста</h3>
@@ -480,20 +507,50 @@
                     <p id="testTitle">Название: Не указано</p>
                     <p id="questionCountInfo">Всего вопросов в файле: 0</p>
                     <p id="selectedQuestions">Будет выбрано: 0</p>
+                    <p id="fileFormatInfo">Формат: Не определен</p>
                 </div>
                 
                 <div class="instructions">
-                    <h3><i class="fas fa-info-circle"></i> Формат документа</h3>
-                    <p>Файл должен содержать вопросы в формате:</p>
-                    <pre>
+                    <h3><i class="fas fa-info-circle"></i> Поддерживаемые форматы</h3>
+                    <div style="margin-bottom: 10px;">
+                        <p><strong>Старый формат (текст/Word):</strong></p>
+                        <pre>
 1. Вопрос?
    a) Вариант 1
    b) Вариант 2
    c) Вариант 3
    d) Вариант 4
-   Правильный ответ: a
-                    </pre>
-                    <p><strong>Система выберет случайные вопросы из файла</strong></p>
+   Правильный ответ: a</pre>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <p><strong>Универсальный и Казахский формат (DOCX/Word/TXT):</strong></p>
+                        <pre>
+№ 1.
+Вопрос на русском или казахском языке?
+A. Первый вариант
+B. Второй вариант  
+C. Третий вариант (правильный)
+D. Четвертый вариант
+Ответ - C
+ИЛИ
+Жауап - C</pre>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <p><strong>Excel с цифровыми ответами:</strong></p>
+                        <pre>
+Жедел - іздестіру қызметі жүзеге асырушы органның іс - әрекеті жөнінде қай органға шағымдануы мүмкін
+A. анықтаушы
+B. нотариус
+C. тергеуші
+D. Прокуратура  
+E. адвокат
+4</pre>
+                        <p>Цифра 4 означает, что правильный ответ - 4-й вариант (D. Прокуратура)</p>
+                    </div>
+                    <div>
+                        <p><strong>Excel табличный формат:</strong></p>
+                        <p>Столбцы: вопрос, варианты A-E, правильный ответ (цифра или буква)</p>
+                    </div>
                 </div>
             </div>
             
@@ -546,6 +603,8 @@
     </div>
 
     <script src="https://unpkg.com/mammoth@1.4.8/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         let testData = [];
         let allQuestions = [];
@@ -553,8 +612,11 @@
         let userAnswers = [];
         let score = 0;
         let timerInterval = null;
-        let timeLeft = 1800; // 30 минут в секундах
+        let timeLeft = 1800;
         let selectedQuestionsCount = 30;
+        let detectedFormat = 'auto';
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         function showTab(tab) {
             const leftPanel = document.getElementById('leftPanel');
@@ -574,7 +636,17 @@
             }
         }
 
-        // Настройки таймера
+        function updateFileAccept() {
+            const format = document.getElementById('fileFormat').value;
+            const fileInput = document.getElementById('fileInput');
+            
+            if (format === 'excel' || format === 'excel-numbered') {
+                fileInput.accept = '.xlsx,.xls';
+            } else {
+                fileInput.accept = '.docx,.doc,.txt,.pdf,.xlsx,.xls';
+            }
+        }
+
         document.getElementById('timerEnabled').addEventListener('change', function() {
             document.getElementById('timerMinutes').disabled = !this.checked;
         });
@@ -586,91 +658,564 @@
         async function loadTest(file) {
             if (!file) return;
             
+            detectedFormat = document.getElementById('fileFormat').value;
+            
             try {
-                const arrayBuffer = await file.arrayBuffer();
-                const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
-                const text = result.value;
+                if (detectedFormat === 'excel' || detectedFormat === 'excel-numbered') {
+                    await parseExcelFile(file, detectedFormat);
+                } else if (file.name.match(/\.(pdf)$/i)) {
+                    await parsePDFFile(file);
+                } else {
+                    const text = await extractTextFromFile(file);
+                    await parseTextFile(text, file.name);
+                }
                 
-                parseTestText(text);
+                if (allQuestions.length === 0) {
+                    alert('Не удалось распознать вопросы. Пожалуйста, выберите правильный формат файла вручную.');
+                    return;
+                }
+                
                 prepareTest();
                 showTestInfo(file.name);
                 startTest();
                 
-                // На мобильных переключаем на вкладку теста
                 if (window.innerWidth < 768) {
                     showTab('right');
                 }
                 
             } catch (error) {
-                // Если это не Word файл, пробуем прочитать как текстовый
-                if (file.name.endsWith('.txt') || file.name.endsWith('.doc')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        parseTestText(e.target.result);
-                        prepareTest();
-                        showTestInfo(file.name);
-                        startTest();
-                        
-                        if (window.innerWidth < 768) {
-                            showTab('right');
-                        }
-                    };
-                    reader.readAsText(file);
-                } else {
-                    alert('Ошибка при чтении файла. Убедитесь, что это документ Word или текстовый файл.');
-                    console.error(error);
-                }
+                alert('Ошибка при чтении файла: ' + error.message);
+                console.error(error);
             }
         }
 
-        function parseTestText(text) {
+        async function extractTextFromFile(file) {
+            if (file.name.match(/\.(docx|doc)$/i)) {
+                const arrayBuffer = await file.arrayBuffer();
+                const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+                
+                let text = result.value;
+                
+                text = text.replace(/[ \t]+/g, ' ')
+                          .replace(/\n{3,}/g, '\n\n')
+                          .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                          .replace(/[\r]+/g, '\n')
+                          .replace(/[\\\/]/g, '')
+                          .replace(/[●•■□▲△▶▷▼▽◆◇]/g, '')
+                          .trim();
+                
+                if (detectedFormat === 'universal' || detectedFormat === 'auto') {
+                    text = cleanUniversalFormat(text);
+                }
+                
+                return text;
+            } else if (file.name.match(/\.(txt)$/i)) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        let text = e.target.result;
+                        text = text.replace(/[ \t]+/g, ' ')
+                                  .replace(/\n{3,}/g, '\n\n')
+                                  .replace(/[\r]+/g, '\n')
+                                  .trim();
+                        resolve(text);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsText(file);
+                });
+            }
+            throw new Error('Неподдерживаемый формат файла');
+        }
+
+        function cleanUniversalFormat(text) {
+            text = text.replace(/№\s*(\d+)\./g, '\n\n№ $1.\n');
+            text = text.replace(/([A-E])[\.\:\s]\s*/g, '$1. ');
+            text = text.replace(/[Оо]твет\s*[—-]\s*([A-E])/gi, 'Ответ - $1');
+            text = text.replace(/[Жж]ауап\s*[—-]\s*([A-E])/gi, 'Ответ - $1');
+            text = text.replace(/Правильный ответ:\s*([A-E])/gi, 'Ответ - $1');
+            text = text.replace(/\-{20,}/g, '');
+            text = text.replace(/\_{20,}/g, '');
+            text = text.replace(/[ ]{2,}/g, ' ');
+            
+            return text;
+        }
+
+        async function parsePDFFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const typedArray = new Uint8Array(e.target.result);
+                        const pdf = await pdfjsLib.getDocument(typedArray).promise;
+                        let fullText = '';
+                        
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join('\n');
+                            fullText += pageText + '\n';
+                        }
+                        
+                        parseComplexFormatText(fullText);
+                        document.getElementById('fileFormatInfo').textContent = 'Формат: PDF';
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function parseExcelFile(file, formatType) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                        
+                        if (formatType === 'excel-numbered') {
+                            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+parseExcelWithNumberedAnswers(data);
+                        } else {
+                            parseExcelData(jsonData);
+                        }
+                        
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+       function parseExcelWithNumberedAnswers(data) {
+    allQuestions = [];
+
+    // Берём только первую колонку и удаляем пустые строки
+    const rows = data
+        .map(r => (r && r[0] ? String(r[0]).trim() : ""))
+        .filter(r => r !== "");
+
+    let i = 0;
+
+    while (i < rows.length) {
+
+        // 1) ВОПРОС
+        const questionText = rows[i];
+        i++;
+
+        // 2) ВАРИАНТЫ (A–E)
+        const answers = [];
+
+        for (let a = 0; a < 5 && i < rows.length; a++, i++) {
+            let line = rows[i];
+
+            if (!line) continue;
+
+            // Убираем префиксы A., A), A:
+            line = line.replace(/^[A-EА-Е]\s*[\.\):\-]*\s*/i, "").trim();
+
+            answers.push(line);
+        }
+
+        // Если вариантов меньше 5 — пропускаем этот блок
+        if (answers.length < 5) continue;
+
+        // 3) ПРАВИЛЬНЫЙ ОТВЕТ — число 1–5
+        let correctAnswer = 0;
+
+        if (i < rows.length && /^[1-5]$/.test(rows[i])) {
+            correctAnswer = parseInt(rows[i]) - 1;
+            i++;
+        } else {
+            correctAnswer = 0;
+        }
+
+        // Добавляем вопрос
+        allQuestions.push({
+            id: allQuestions.length,
+            text: questionText,
+            answers: answers,
+            correctAnswer: correctAnswer,
+            format: "excel-numbered"
+        });
+    }
+
+    document.getElementById('fileFormatInfo').textContent =
+        `Формат: Excel с цифровыми ответами (найдено ${allQuestions.length} вопросов)`;
+}
+
+        function parseExcelData(data) {
             allQuestions = [];
             
-            // Убираем лишние пробелы и разбиваем на строки
-            const lines = text.split('\n').filter(line => line.trim() !== '');
+            let startRow = 0;
+            for (let i = 0; i < Math.min(5, data.length); i++) {
+                if (data[i] && data[i].length >= 3) {
+                    const firstCell = String(data[i][0] || '').toLowerCase();
+                    if (firstCell.includes('вопрос') || firstCell.includes('question') || 
+                        firstCell.includes('сұрақ')) {
+                        startRow = i + 1;
+                        break;
+                    }
+                }
+            }
             
+            for (let i = startRow; i < data.length; i++) {
+                const row = data[i];
+                if (!row || row.length < 3) continue;
+                
+                const questionText = String(row[0] || '').trim();
+                const correctAnswer = String(row[1] || '').trim();
+                const answers = [];
+                
+                for (let j = 2; j < row.length; j++) {
+                    const option = String(row[j] || '').trim();
+                    if (option) {
+                        answers.push(option);
+                    }
+                }
+                
+                if (questionText && answers.length >= 2) {
+                    let correctIndex = -1;
+                    
+                    if (correctAnswer.match(/^[A-E]$/i)) {
+                        correctIndex = correctAnswer.toUpperCase().charCodeAt(0) - 65;
+                    } 
+                    else if (correctAnswer.match(/^\d+$/)) {
+                        const num = parseInt(correctAnswer);
+                        if (num >= 1 && num <= answers.length) {
+                            correctIndex = num - 1;
+                        }
+                    }
+                    else {
+                        for (let k = 0; k < answers.length; k++) {
+                            if (answers[k].trim() === correctAnswer.trim()) {
+                                correctIndex = k;
+                                break;
+                            }
+                        }
+                        
+                        if (correctIndex === -1) {
+                            for (let k = 0; k < answers.length; k++) {
+                                if (answers[k].toLowerCase().includes(correctAnswer.toLowerCase()) ||
+                                    correctAnswer.toLowerCase().includes(answers[k].toLowerCase())) {
+                                    correctIndex = k;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (correctIndex === -1 || correctIndex >= answers.length) {
+                        correctIndex = 0;
+                    }
+                    
+                    allQuestions.push({
+                        id: allQuestions.length,
+                        originalNumber: i + 1,
+                        text: questionText,
+                        answers: answers,
+                        correctAnswer: correctIndex,
+                        format: 'excel'
+                    });
+                }
+            }
+            
+            document.getElementById('fileFormatInfo').textContent = `Формат: Excel (найдено ${allQuestions.length} вопросов)`;
+        }
+
+        async function parseTextFile(text, filename) {
+            allQuestions = [];
+            
+            let format = detectedFormat;
+            if (format === 'auto') {
+                const hasKazakh = text.match(/[ӘәҒғҚқҢңӨөҰұҮүҺһІі]/);
+                const hasAnswerKaz = text.match(/[Жж]ауап\s*[—-]\s*[A-E]/i);
+                const hasAnswerRu = text.match(/[Оо]твет\s*[—-]\s*[A-E]/i);
+                
+                if ((hasKazakh && hasAnswerKaz) || (hasKazakh && hasAnswerRu)) {
+                    format = 'universal';
+                } else if (text.includes('№') && (hasAnswerRu || hasAnswerKaz)) {
+                    format = 'universal';
+                } else if (text.match(/\d+\.\s*.*\?/s) && text.includes('Правильный ответ:')) {
+                    format = 'old';
+                } else if (text.includes('Вопрос с одиночным выбором')) {
+                    format = 'complex';
+                } else {
+                    format = 'universal';
+                }
+            }
+            
+            if (format === 'universal') {
+                parseUniversalFormat(text);
+                document.getElementById('fileFormatInfo').textContent = 'Формат: Универсальный (с поддержкой казахского)';
+            } else if (format === 'old') {
+                parseOldFormatText(text);
+                document.getElementById('fileFormatInfo').textContent = 'Формат: Старый текстовый';
+            } else {
+                parseComplexFormatText(text);
+                document.getElementById('fileFormatInfo').textContent = 'Формат: Сложный (таблицы)';
+            }
+        }
+
+        function parseUniversalFormat(text) {
+allQuestions = [];
+
+const questionBlocks = text.split(/(?=№\s*\d+\.)/).filter(block => block.trim());  
+          
+        questionBlocks.forEach((block, index) => {  
+            const lines = block.split('\n').map(line => line.trim()).filter(line => line.length > 0);  
+              
+            if (lines.length < 3) return;  
+              
+            let questionText = '';  
+            let answers = [];  
+            let correctAnswer = -1;  
+            let collectingQuestion = true;  
+            let currentAnswer = null;  
+              
+            for (let i = 0; i < lines.length; i++) {  
+                const line = lines[i];  
+                  
+                if (line.match(/^№\s*\d+\./)) {  
+                    continue;  
+                }  
+                  
+                const answerMatch = line.match(/^([A-E])\.\s*(.+)/i);  
+                if (answerMatch) {  
+                    collectingQuestion = false;  
+                    const letter = answerMatch[1].toUpperCase();  
+                    const answerText = answerMatch[2].trim();  
+                      
+                    currentAnswer = {  
+                        letter: letter,  
+                        text: answerText  
+                    };  
+                    answers.push(currentAnswer);  
+                    continue;  
+                }  
+                  
+                const correctMatchRu = line.match(/[Оо]твет\s*[—-]\s*([A-E])/i);  
+                const correctMatchKz = line.match(/[Жж]ауап\s*[—-]\s*([A-E])/i);  
+                  
+                if (correctMatchRu) {  
+                    const correctLetter = correctMatchRu[1].toUpperCase();  
+                    correctAnswer = correctLetter.charCodeAt(0) - 65;  
+                    continue;  
+                }  
+                  
+                if (correctMatchKz) {  
+                    const correctLetter = correctMatchKz[1].toUpperCase();  
+                    correctAnswer = correctLetter.charCodeAt(0) - 65;  
+                    continue;  
+                }  
+                  
+                if (collectingQuestion && line) {  
+                    questionText += (questionText ? ' ' : '') + line;  
+                }  
+                else if (currentAnswer && line && !line.match(/^[A-E]\./) &&   
+                         !line.match(/[Оо]твет\s*[—-]\s*[A-E]/i) &&  
+                         !line.match(/[Жж]ауап\s*[—-]\s*[A-E]/i)) {  
+                    currentAnswer.text += ' ' + line;  
+                }  
+            }  
+              
+            if (correctAnswer === -1 && answers.length > 0) {  
+                for (let i = 0; i < answers.length; i++) {  
+                    const answerText = answers[i].text;  
+                    const correctInAnswerRu = answerText.match(/[Оо]твет\s*[—-]\s*([A-E])/i);  
+                    const correctInAnswerKz = answerText.match(/[Жж]ауап\s*[—-]\s*([A-E])/i);  
+                      
+                    if (correctInAnswerRu) {  
+                        const correctLetter = correctInAnswerRu[1].toUpperCase();  
+                        if (answers[i].letter === correctLetter) {  
+                            correctAnswer = i;  
+                            answers[i].text = answers[i].text.replace(/[Оо]твет\s*[—-]\s*[A-E].*/i, '').trim();  
+                        }  
+                    }  
+                      
+                    if (correctInAnswerKz && correctAnswer === -1) {  
+                        const correctLetter = correctInAnswerKz[1].toUpperCase();  
+                        if (answers[i].letter === correctLetter) {  
+                            correctAnswer = i;  
+                            answers[i].text = answers[i].text.replace(/[Жж]ауап\s*[—-]\s*[A-E].*/i, '').trim();  
+                        }  
+                    }  
+                }  
+            }  
+              
+            answers.sort((a, b) => a.letter.localeCompare(b.letter));  
+              
+            const answerTexts = answers.map(a => a.text);  
+              
+            if (questionText && answerTexts.length >= 2) {  
+                if (correctAnswer < 0 || correctAnswer >= answerTexts.length) {  
+                    correctAnswer = 0;  
+                }  
+                  
+                allQuestions.push({  
+                    id: allQuestions.length,  
+                    originalNumber: index + 1,  
+                    text: questionText.trim(),  
+                    answers: answerTexts,  
+                    correctAnswer: correctAnswer,  
+                    format: 'universal'  
+                });  
+            }  
+        });  
+    }
+        function parseComplexFormatText(text) {
+            allQuestions = [];
+            const lines = text.split('\n');
             let currentQuestion = null;
+            let inQuestion = false;
+            let answerLines = [];
+            let questionNumber = 0;
             
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 
-                // Проверяем, начинается ли строка с цифры и точки (новый вопрос)
+                if (line.match(/^№\s*\d+\.?/) || 
+                    line.match(/^\d+\.\s/) ||
+                    (line.startsWith('Вопрос') && line.match(/\d+/))) {
+                    
+                    if (currentQuestion && answerLines.length > 0) {
+                        processComplexQuestion(currentQuestion, answerLines);
+                        answerLines = [];
+                    }
+                    
+                    currentQuestion = {
+                        text: '',
+                        answers: [],
+                        correctAnswer: -1
+                    };
+                    inQuestion = true;
+                    questionNumber++;
+                    
+                    let questionText = line.replace(/^№\s*\d+\.?\s*/, '')
+                                          .replace(/^\d+\.\s*/, '')
+                                          .replace(/^Вопрос\s*\d+\.?\s*/, '')
+                                          .trim();
+                    
+                    if (questionText) {
+                        currentQuestion.text = questionText;
+                    }
+                    continue;
+                }
+                
+                if (inQuestion && currentQuestion) {
+                    const answerMatch = line.match(/^([A-E])[\.\:\s]\s*(.+)/i);
+                    if (answerMatch) {
+                        const letter = answerMatch[1].toUpperCase();
+                        const answerText = answerMatch[2].trim();
+                        answerLines.push({letter, text: answerText});
+                        continue;
+                    }
+                    
+                    const correctMatchRu = line.match(/[Оо]твет\s*[—-]\s*([A-E])/i);
+                    const correctMatchKz = line.match(/[Жж]ауап\s*[—-]\s*([A-E])/i);
+                    
+                    if (correctMatchRu) {
+                        const correctLetter = correctMatchRu[1].toUpperCase();
+                        currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 65;
+                        inQuestion = false;
+                        continue;
+                    }
+                    
+                    if (correctMatchKz) {
+                        const correctLetter = correctMatchKz[1].toUpperCase();
+                        currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 65;
+                        inQuestion = false;
+                        continue;
+                    }
+                    
+                    if (!currentQuestion.text) {
+                        currentQuestion.text = line;
+                    } 
+                    else if (answerLines.length > 0 && line) {
+                        const lastAnswer = answerLines[answerLines.length - 1];
+                        lastAnswer.text += ' ' + line;
+                    }
+                }
+            }
+            
+            if (currentQuestion && answerLines.length > 0) {
+                processComplexQuestion(currentQuestion, answerLines);
+            }
+        }
+
+        function processComplexQuestion(questionData, answerLines) {
+            const answersByLetter = {};
+            answerLines.forEach(item => {
+                if (!answersByLetter[item.letter]) {
+                    answersByLetter[item.letter] = item.text;
+                } else {
+                    answersByLetter[item.letter] += ' ' + item.text;
+                }
+            });
+            
+            const sortedLetters = Object.keys(answersByLetter).sort();
+            const answers = sortedLetters.map(letter => answersByLetter[letter]);
+            
+            if (questionData.text && answers.length >= 2 && questionData.correctAnswer >= 0) {
+                allQuestions.push({
+                    id: allQuestions.length,
+                    originalNumber: allQuestions.length + 1,
+                    text: questionData.text,
+                    answers: answers,
+                    correctAnswer: questionData.correctAnswer,
+                    format: 'complex'
+                });
+            }
+        }
+
+        function parseOldFormatText(text) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            let currentQuestion = null;
+            let questionNumber = 0;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
                 const questionMatch = line.match(/^(\d+)\.\s*(.+)$/);
                 if (questionMatch) {
-                    // Сохраняем предыдущий вопрос, если он есть
                     if (currentQuestion && currentQuestion.answers.length > 0) {
                         allQuestions.push(currentQuestion);
                     }
                     
-                    // Создаем новый вопрос
+                    questionNumber++;
                     currentQuestion = {
                         id: allQuestions.length,
                         originalNumber: parseInt(questionMatch[1]),
                         text: questionMatch[2].trim(),
                         answers: [],
-                        correctAnswer: -1
+                        correctAnswer: -1,
+                        format: 'old'
                     };
                 } 
-                // Проверяем, является ли строка вариантом ответа (начинается с буквы и скобки)
                 else if (currentQuestion && line.match(/^[a-d]\)/i)) {
-                    // Извлекаем текст ответа
                     const answerText = line.replace(/^[a-d]\)\s*/i, '').trim();
                     
-                    // Проверяем, содержит ли строка указание на правильный ответ
                     const correctMatch = answerText.toLowerCase().match(/правильный ответ:\s*([a-d])/i);
                     if (correctMatch) {
-                        // Определяем индекс правильного ответа (0 для 'a', 1 для 'b', и т.д.)
                         const correctLetter = correctMatch[1].toLowerCase();
-                        currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 97; // 'a' -> 0, 'b' -> 1
+                        currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 97;
                         
-                        // Убираем пометку о правильном ответе из текста
                         const cleanAnswerText = answerText.replace(/правильный ответ:\s*[a-d]/i, '').trim();
                         currentQuestion.answers.push(cleanAnswerText);
                     } else {
                         currentQuestion.answers.push(answerText);
                     }
                 }
-                // Проверяем, содержит ли строка отдельное указание на правильный ответ
                 else if (currentQuestion && line.toLowerCase().includes('правильный ответ:')) {
                     const correctMatch = line.toLowerCase().match(/правильный ответ:\s*([a-d])/i);
                     if (correctMatch && currentQuestion.correctAnswer === -1) {
@@ -678,18 +1223,15 @@
                         currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 97;
                     }
                 }
-                // Если это продолжение вопроса (многострочный вопрос)
                 else if (currentQuestion && currentQuestion.answers.length === 0) {
                     currentQuestion.text += ' ' + line;
                 }
-                // Если это продолжение ответа (многострочный ответ)
                 else if (currentQuestion && currentQuestion.answers.length > 0) {
                     const lastAnswerIndex = currentQuestion.answers.length - 1;
                     currentQuestion.answers[lastAnswerIndex] += ' ' + line;
                 }
             }
             
-            // Добавляем последний вопрос
             if (currentQuestion && currentQuestion.answers.length > 0) {
                 allQuestions.push(currentQuestion);
             }
@@ -700,19 +1242,15 @@
             selectedQuestionsCount = parseInt(document.getElementById('questionCount').value) || 30;
             
             if (useRandom) {
-                // Выбираем случайные вопросы
                 testData = getRandomQuestions(allQuestions, selectedQuestionsCount);
             } else {
-                // Берем первые N вопросов
                 testData = allQuestions.slice(0, Math.min(selectedQuestionsCount, allQuestions.length));
             }
             
-            // Перемешиваем вопросы, если выбран случайный режим
             if (useRandom) {
                 shuffleArray(testData);
             }
             
-            // Перенумеровываем вопросы
             testData.forEach((q, index) => {
                 q.id = index;
             });
@@ -723,15 +1261,12 @@
                 return [...questions];
             }
             
-            // Создаем копию массива
             const shuffled = [...questions];
-            // Перемешиваем
             for (let i = shuffled.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
             }
             
-            // Берем первые N элементов
             return shuffled.slice(0, count);
         }
 
@@ -765,7 +1300,6 @@
             document.getElementById('questionContainer').style.display = 'block';
             document.getElementById('results').style.display = 'none';
             
-            // Настраиваем таймер
             if (document.getElementById('timerEnabled').checked) {
                 const minutes = parseInt(document.getElementById('timerMinutes').value) || 30;
                 timeLeft = minutes * 60;
@@ -818,6 +1352,8 @@
             answersContainer.innerHTML = '';
             
             question.answers.forEach((answer, answerIndex) => {
+                if (!answer || answer.trim() === '') return;
+                
                 const label = document.createElement('label');
                 label.className = 'answer-label';
                 if (userAnswers[index] === answerIndex) {
@@ -839,7 +1375,7 @@
                     selectAnswer(answerIndex);
                 };
                 
-                const answerLetter = String.fromCharCode(97 + answerIndex);
+                const answerLetter = String.fromCharCode(65 + answerIndex);
                 const answerText = document.createElement('span');
                 answerText.innerHTML = `<strong>${answerLetter})</strong> ${answer}`;
                 
@@ -848,7 +1384,6 @@
                 answersContainer.appendChild(label);
             });
             
-            // Обновляем кнопки навигации
             document.getElementById('prevBtn').style.display = index === 0 ? 'none' : 'block';
             document.getElementById('nextBtn').style.display = index === testData.length - 1 ? 'none' : 'block';
             document.getElementById('submitBtn').style.display = index === testData.length - 1 ? 'block' : 'none';
@@ -859,7 +1394,6 @@
         function selectAnswer(selectedIndex) {
             userAnswers[currentQuestion] = selectedIndex;
             
-            // Обновляем стиль выбранного ответа
             const labels = document.querySelectorAll('.answer-label');
             labels.forEach((label, index) => {
                 label.classList.remove('selected', 'correct', 'incorrect');
@@ -868,7 +1402,6 @@
                 }
             });
             
-            // Автоматически показываем правильный ответ через 1 секунду
             setTimeout(() => {
                 showCorrectAnswer();
             }, 500);
@@ -885,13 +1418,6 @@
                     label.classList.add('incorrect');
                 }
             });
-            
-            // Автоматически переходим к следующему вопросу через 2 секунды
-           /* if (currentQuestion < testData.length - 1) {
-                setTimeout(() => {
-                    nextQuestion();
-                }, 2000);
-            }*/
         }
 
         function nextQuestion() {
@@ -924,7 +1450,6 @@
                 timerInterval = null;
             }
             
-            // Пересчитываем итоговый балл
             score = 0;
             testData.forEach((question, index) => {
                 if (userAnswers[index] === question.correctAnswer) {
@@ -940,14 +1465,12 @@
                 `Правильных ответов: ${score} из ${testData.length}`;
             document.getElementById('scoreCircle').textContent = `${percentage}%`;
             
-            // Детальные результаты
             const detailedResults = document.getElementById('detailedResults');
             detailedResults.innerHTML = `
                 <p><strong>Оценка:</strong> ${getGrade(percentage)}</p>
                 <p><strong>Процент правильных ответов:</strong> ${percentage}%</p>
             `;
             
-            // Сообщение в зависимости от результата
             const resultMessage = document.getElementById('resultMessage');
             if (percentage >= 90) {
                 resultMessage.textContent = 'Отлично! Вы отлично знаете материал!';
@@ -981,8 +1504,8 @@
             testData.forEach((question, index) => {
                 const userAnswer = userAnswers[index];
                 const isCorrect = userAnswer === question.correctAnswer;
-                const answerLetter = userAnswer !== null ? String.fromCharCode(97 + userAnswer) : 'Нет ответа';
-                const correctLetter = String.fromCharCode(97 + question.correctAnswer);
+                const answerLetter = userAnswer !== null ? String.fromCharCode(65 + userAnswer) : 'Нет ответа';
+                const correctLetter = String.fromCharCode(65 + question.correctAnswer);
                 
                 answersHtml += `
                     <div style="background: ${isCorrect ? '#d4edda' : '#f8d7da'}; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: left;">
@@ -998,7 +1521,6 @@
         }
 
         function restartTest() {
-            // Заново подготавливаем тест (новые случайные вопросы)
             prepareTest();
             
             currentQuestion = 0;
@@ -1008,7 +1530,6 @@
             document.getElementById('results').style.display = 'none';
             document.getElementById('questionContainer').style.display = 'block';
             
-            // Сбрасываем таймер
             if (document.getElementById('timerEnabled').checked) {
                 const minutes = parseInt(document.getElementById('timerMinutes').value) || 30;
                 timeLeft = minutes * 60;
@@ -1018,7 +1539,6 @@
             loadQuestion(currentQuestion);
         }
 
-        // Обработка drag & drop
         document.addEventListener('DOMContentLoaded', function() {
             const uploadArea = document.querySelector('.upload-area');
             
@@ -1037,57 +1557,49 @@
                 this.style.background = '#f0f8ff';
                 
                 const file = e.dataTransfer.files[0];
-                if (file && (file.name.endsWith('.docx') || file.name.endsWith('.doc') || file.name.endsWith('.txt'))) {
+                const acceptedFormats = ['.docx', '.doc', '.txt', '.pdf', '.xlsx', '.xls'];
+                const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+                
+                if (file && acceptedFormats.includes(fileExt)) {
                     loadTest(file);
                 } else {
-                    alert('Пожалуйста, загрузите файл Word (.docx, .doc) или текстовый файл (.txt)');
+                    alert('Пожалуйста, загрузите файл одного из поддерживаемых форматов: .docx, .doc, .txt, .pdf, .xlsx, .xls');
                 }
             });
             
-            // Загружаем тестовые данные по умолчанию
             loadDefaultTest();
         });
 
         function loadDefaultTest() {
-            // Создаем тестовые данные из вашего текста (первые 5 вопросов для примера)
-            const testText = `1. За единицу измерения углов (меру углов) в стрелковой практике принимают центральный угол, длина дуги которого равна?
-a) 1/6000 части длины окружности
-b) 1/1000 части длины окружности
-c) 1/600 части длины окружности
-d) 1/100 части длины окружности
-Правильный ответ: a
+            const testText = `№ 1.
+Жедел - іздестіру қызметі жүзеге асырушы органның іс - әрекеті жөнінде қай органға шағымдануы мүмкін
+A. анықтаушы
+B. нотариус
+C. тергеуші
+D. Прокуратура
+E. адвокат
+Жауап - D
 
-2. Маркировкой боеприпасов называется?
-a) условные обозначения и записи нанесённые акварелью на мине, патроне и в ящике боеприпасов
-b) условные обозначения и записи нанесённые краской на пуле, патроне и в ящике боеприпасов
-c) условные знаки и надписи, нанесённые краской на снаряде, гильзе и укупорке боеприпасов
-d) условные символы и подписи, нанесённые красной краской на снаряде, гильзе и укупорке боеприпасов
-Правильный ответ: c
+№ 2.
+За единицу измерения углов (меру углов) в стрелковой практике принимают центральный угол, длина дуги которого равна?
+A. 1/6000 части длины окружности
+B. 1/1000 части длины окружности
+C. 1/600 части длины окружности
+D. 1/100 части длины окружности
+Ответ - A
 
-3. НУРС-это?
-a) имя создателя реактивного снаряда
-b) несущий управляемый реактивный снаряд
-c) частично управляемый реактивный снаряд
-d) неуправляемый реактивный снаряд
-Правильный ответ: c
+№ 3.
+Маркировкой боеприпасов называется?
+A. условные обозначения и записи нанесённые акварельу на мине, патроне и в ящике боеприпасов
+B. условные обозначения и записи нанесённые краской на пуле, патроне и в ящике боеприпасов
+C. условные знаки и надписи, нанесённые краской на снаряде, гильзе и укупорке боеприпасов
+D. условные символы и подписи, нанесённые красной краской на снаряде, гильзе и укупорке боеприпасов
+Ответ - C`;
 
-4. Стабилизатор 2Э36-1 предназначен для?
-a) стабилизации и ведения огня по наземным и воздушным целям днём
-b) стабилизации, наблюдения, целеуказания, определения дальности
-c) стабилизации пушки в 2-х плоскостях в целях обеспечения эффективной стрельбы с ходу с места по наземным и воздушным целям
-d) стабилизации, наблюдения за полем боя и ведения прицельного огня из пушки и пулемёта днём и ночью
-Правильный ответ: c
-
-5. Автоматическое действие АК-74, РПК-74, основана на использовании?
-a) отдачи курка
-b) энергии пороховых газов
-c) отдачи свободного затвора
-d) отдачи возвратной пружины
-Правильный ответ: b`;
-
-            parseTestText(testText);
+            parseUniversalFormat(testText);
             prepareTest();
-            showTestInfo('Тест по военной подготовке (демо)');
+            showTestInfo('Демонстрационный тест (универсальный формат)');
+            document.getElementById('fileFormatInfo').textContent = 'Формат: Универсальный (русский и казахский)';
         }
     </script>
 </body>
