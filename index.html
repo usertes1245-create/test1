@@ -1202,22 +1202,22 @@ const questionBlocks = text.split(/(?=№\s*\d+\.)/).filter(block => block.trim(
                         format: 'old'
                     };
                 } 
-                else if (currentQuestion && line.match(/^[a-d]\)/i)) {
-                    const answerText = line.replace(/^[a-d]\)\s*/i, '').trim();
+                else if (currentQuestion && line.match(/^[a-e]\)/i)) {
+                    const answerText = line.replace(/^[a-e]\)\s*/i, '').trim();
                     
-                    const correctMatch = answerText.toLowerCase().match(/правильный ответ:\s*([a-d])/i);
+                    const correctMatch = answerText.toLowerCase().match(/правильный ответ:\s*([a-e])/i);
                     if (correctMatch) {
                         const correctLetter = correctMatch[1].toLowerCase();
                         currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 97;
                         
-                        const cleanAnswerText = answerText.replace(/правильный ответ:\s*[a-d]/i, '').trim();
+                        const cleanAnswerText = answerText.replace(/правильный ответ:\s*[a-e]/i, '').trim();
                         currentQuestion.answers.push(cleanAnswerText);
                     } else {
                         currentQuestion.answers.push(answerText);
                     }
                 }
                 else if (currentQuestion && line.toLowerCase().includes('правильный ответ:')) {
-                    const correctMatch = line.toLowerCase().match(/правильный ответ:\s*([a-d])/i);
+                    const correctMatch = line.toLowerCase().match(/правильный ответ:\s*([a-e])/i);
                     if (correctMatch && currentQuestion.correctAnswer === -1) {
                         const correctLetter = correctMatch[1].toLowerCase();
                         currentQuestion.correctAnswer = correctLetter.charCodeAt(0) - 97;
