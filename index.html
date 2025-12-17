@@ -855,83 +855,83 @@ parseExcelWithNumberedAnswers(data);
 }
 
         function parseExcelData(data) {
-            allQuestions = [];
-            
-            let startRow = 0;
-            for (let i = 0; i < Math.min(5, data.length); i++) {
-                if (data[i] && data[i].length >= 3) {
-                    const firstCell = String(data[i][0] || '').toLowerCase();
-                    if (firstCell.includes('вопрос') || firstCell.includes('question') || 
-                        firstCell.includes('сұрақ')) {
-                        startRow = i + 1;
-                        break;
-                    }
-                }
+    allQuestions = [];
+    
+    let startRow = 0;
+    for (let i = 0; i < Math.min(5, data.length); i++) {
+        if (data[i] && data[i].length >= 3) {
+            const firstCell = String(data[i][0] || '').toLowerCase();
+            if (firstCell.includes('вопрос') || firstCell.includes('question') || 
+                firstCell.includes('сұрақ')) {
+                startRow = i + 1;
+                break;
             }
-            
-            for (let i = startRow; i < data.length; i++) {
-                const row = data[i];
-                if (!row || row.length < 3) continue;
-                
-                const questionText = String(row[0] || '').trim();
-                const correctAnswer = String(row[1] || '').trim();
-                const answers = [];
-                
-                for (let j = 2; j < row.length; j++) {
-                    const option = String(row[j] || '').trim();
-                    if (option) {
-                        answers.push(option);
-                    }
-                }
-                
-                if (questionText && answers.length >= 2) {
-                    let correctIndex = -1;
-                    
-                    if (correctAnswer.match(/^[A-E]$/i)) {
-                        correctIndex = correctAnswer.toUpperCase().charCodeAt(0) - 65;
-                    } 
-                    else if (correctAnswer.match(/^\d+$/)) {
-                        const num = parseInt(correctAnswer);
-                        if (num >= 1 && num <= answers.length) {
-                            correctIndex = num - 1;
-                        }
-                    }
-                    else {
-                        for (let k = 0; k < answers.length; k++) {
-                            if (answers[k].trim() === correctAnswer.trim()) {
-                                correctIndex = k;
-                                break;
-                            }
-                        }
-                        
-                        if (correctIndex === -1) {
-                            for (let k = 0; k < answers.length; k++) {
-                                if (answers[k].toLowerCase().includes(correctAnswer.toLowerCase()) ||
-                                    correctAnswer.toLowerCase().includes(answers[k].toLowerCase())) {
-                                    correctIndex = k;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (correctIndex === -1 || correctIndex >= answers.length) {
-                        correctIndex = 0;
-                    }
-                    
-                    allQuestions.push({
-                        id: allQuestions.length,
-                        originalNumber: i + 1,
-                        text: questionText,
-                        answers: answers,
-                        correctAnswer: correctIndex,
-                        format: 'excel'
-                    });
-                }
-            }
-            
-            document.getElementById('fileFormatInfo').textContent = `Формат: Excel (найдено ${allQuestions.length} вопросов)`;
         }
+    }
+    
+    for (let i = startRow; i < data.length; i++) {
+        const row = data[i];
+        if (!row || row.length < 3) continue;
+        
+        const questionText = String(row[0] || '').trim();
+        const correctAnswer = String(row[1] || '').trim(); // Правильный ответ в столбце B (индекс 1)
+        const answers = [];
+        
+        // Собираем ВСЕ варианты ответов (правильный из B и остальные из C-F)
+        // Добавляем сначала правильный ответ
+        if (correctAnswer) {
+            answers.push(correctAnswer);
+        }
+        
+        // Добавляем остальные варианты из столбцов C-F (индексы 2-5)
+        for (let j = 2; j < row.length && j < 6; j++) {
+            const option = String(row[j] || '').trim();
+            if (option) {
+                answers.push(option);
+            }
+        }
+        
+        if (questionText && answers.length >= 2) {
+            // Перемешиваем варианты ответов
+            const shuffledAnswers = shuffleArray([...answers]);
+            
+            // Находим индекс правильного ответа в перемешанном массиве
+            let correctIndex = -1;
+            for (let k = 0; k < shuffledAnswers.length; k++) {
+                if (shuffledAnswers[k] === correctAnswer) {
+                    correctIndex = k;
+                    break;
+                }
+            }
+            
+            // Если не нашли (или перемешанный ответ не совпадает точно), используем 0
+            if (correctIndex === -1) {
+                correctIndex = 0;
+            }
+            
+            allQuestions.push({
+                id: allQuestions.length,
+                originalNumber: i + 1,
+                text: questionText,
+                answers: shuffledAnswers,
+                correctAnswer: correctIndex,
+                format: 'excel'
+            });
+        }
+    }
+    
+    document.getElementById('fileFormatInfo').textContent = `Формат: Excel (найдено ${allQuestions.length} вопросов)`;
+}
+
+// Функция для перемешивания массива (алгоритм Фишера-Йетса)
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
 
         async function parseTextFile(text, filename) {
             allQuestions = [];
